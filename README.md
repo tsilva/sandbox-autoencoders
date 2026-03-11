@@ -51,3 +51,18 @@ python -m sandbox_autoencoders.interpolate \
 
 The output strip contains the first source frame, latent interpolation frames, and the second source frame.
 
+## Explorer UI
+
+Launch a local interpolation explorer against the current best checkpoint:
+
+```bash
+python -m sandbox_autoencoders.explorer \
+  --checkpoint outputs/full-run-es/checkpoints/best.pt
+```
+
+The UI lets you:
+
+- switch checkpoints
+- scrub frame indices
+- compare original frames against endpoint reconstructions
+- inspect the full decoded latent path as a gallery

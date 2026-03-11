@@ -9,6 +9,7 @@ description = "VAE experiments for ZX Spectrum longplay frames"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "gradio>=5.20.0",
   "Pillow>=10.0.0",
   "pandas>=2.2.0",
   "pyarrow>=15.0.0",

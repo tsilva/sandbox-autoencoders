@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from sandbox_autoencoders.data import DEFAULT_DATASET, ImageSpec, collate_frames, load_full_dataset
@@ -35,6 +34,25 @@ def _load_model(checkpoint_path: str, device: torch.device) -> tuple[ConvVAE, Im
 
 
 @torch.inference_mode()
+def interpolate_tensors(
+    model: ConvVAE,
+    image_a: torch.Tensor,
+    image_b: torch.Tensor,
+    steps: int,
+    device: torch.device,
+) -> torch.Tensor:
+    mu_a, _ = model.encode(image_a.to(device))
+    mu_b, _ = model.encode(image_b.to(device))
+
+    alphas = torch.linspace(0.0, 1.0, steps + 2, device=device)
+    decoded = []
+    for alpha in alphas:
+        latent = torch.lerp(mu_a, mu_b, alpha)
+        decoded.append(model.decode(latent).cpu())
+    return torch.cat(decoded, dim=0)
+
+
+@torch.inference_mode()
 def main() -> None:
     args = parse_args()
     device = choose_device(args.device)
@@ -45,20 +63,10 @@ def main() -> None:
     frame_b = collate_frames([dataset[args.index_b]])
     image_a = frame_a["image"].to(device)
     image_b = frame_b["image"].to(device)
-
-    mu_a, _ = model.encode(image_a)
-    mu_b, _ = model.encode(image_b)
-
-    alphas = torch.linspace(0.0, 1.0, args.steps + 2, device=device)
-    decoded = []
-    for alpha in alphas:
-        latent = torch.lerp(mu_a, mu_b, alpha)
-        decoded.append(model.decode(latent).cpu())
-
-    strip = torch.cat(decoded, dim=0)
+    strip = interpolate_tensors(model=model, image_a=image_a, image_b=image_b, steps=args.steps, device=device)
     output_path = Path(args.output)
     ensure_dir(output_path.parent)
-    save_image(strip, output_path, nrow=len(decoded))
+    save_image(strip, output_path, nrow=strip.size(0))
 
 
 if __name__ == "__main__":
