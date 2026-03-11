@@ -65,4 +65,4 @@ The UI lets you:
 - switch checkpoints
 - scrub frame indices
 - compare original frames against endpoint reconstructions
-- inspect the full decoded latent path as a gallery
+- play back the decoded latent path as a looping video

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import random
+import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -66,6 +69,10 @@ class ExplorerState:
         return self.loaded
 
 
+VIDEO_CACHE_DIR = Path(".cache/explorer-media")
+VIDEO_FPS = 8
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch an interpolation explorer for a trained VAE.")
     parser.add_argument("--checkpoint", default="outputs/full-run-es/checkpoints/best.pt")
@@ -89,6 +96,63 @@ def _tensor_to_image(tensor: torch.Tensor) -> Image.Image:
     return TF.to_pil_image(tensor.clamp(0.0, 1.0))
 
 
+def _build_playback_frames(strip: torch.Tensor) -> list[Image.Image]:
+    frames = [_tensor_to_image(frame) for frame in strip]
+    if len(frames) <= 2:
+        return frames
+    return frames + list(reversed(frames[1:-1]))
+
+
+def _video_path(
+    checkpoint_path: Path,
+    dataset_name: str,
+    index_a: int,
+    index_b: int,
+    steps: int,
+) -> Path:
+    digest = hashlib.sha1(
+        f"{checkpoint_path}:{dataset_name}:{index_a}:{index_b}:{steps}".encode("utf-8")
+    ).hexdigest()[:16]
+    return VIDEO_CACHE_DIR / f"interpolation-{digest}.mp4"
+
+
+def _write_video(frames: list[Image.Image], output_path: Path, fps: int = VIDEO_FPS) -> Path:
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path is None:
+        raise RuntimeError("ffmpeg is required to render interpolation video playback")
+
+    if not frames:
+        raise ValueError("at least one frame is required to render video playback")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    width, height = frames[0].size
+    payload = b"".join(frame.convert("RGB").tobytes() for frame in frames)
+    command = [
+        ffmpeg_path,
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        "rgb24",
+        "-video_size",
+        f"{width}x{height}",
+        "-framerate",
+        str(fps),
+        "-i",
+        "-",
+        "-an",
+        "-vcodec",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+    subprocess.run(command, input=payload, capture_output=True, check=True)
+    return output_path
+
+
 @torch.inference_mode()
 def _render(
     state: ExplorerState,
@@ -99,7 +163,7 @@ def _render(
     index_a: int,
     index_b: int,
     steps: int,
-) -> tuple[str, Image.Image, Image.Image, Image.Image, Image.Image, list[Image.Image]]:
+) -> tuple[str, Image.Image, Image.Image, Image.Image, Image.Image, str | None]:
     loaded = state.load(
         checkpoint_path=checkpoint_path,
         dataset_name=dataset_name,
@@ -130,7 +194,11 @@ def _render(
         device=loaded.device,
     )
 
-    gallery_images = [_tensor_to_image(frame) for frame in strip]
+    playback_frames = _build_playback_frames(strip)
+    video_path = _write_video(
+        playback_frames,
+        _video_path(loaded.checkpoint_path, loaded.dataset_name, index_a, index_b, steps),
+    )
     metadata = torch.load(str(loaded.checkpoint_path), map_location="cpu", weights_only=False)
     epoch = metadata.get("epoch", "?")
     metrics = metadata.get("metrics") or {}
@@ -154,7 +222,7 @@ def _render(
         _tensor_to_image(reconstruction_a[0]),
         _tensor_to_image(image_b[0]),
         _tensor_to_image(reconstruction_b[0]),
-        gallery_images,
+        str(video_path),
     )
 
 
@@ -282,7 +350,13 @@ def build_app(
             original_b = gr.Image(label="Original B", type="pil")
             recon_b = gr.Image(label="Reconstruction B", type="pil")
 
-        gallery = gr.Gallery(label="Latent Path", columns=6, object_fit="contain", height="auto")
+        playback = gr.Video(
+            label="Interpolation Playback",
+            format="mp4",
+            autoplay=True,
+            loop=True,
+            include_audio=False,
+        )
 
         load_button.click(
             fn=lambda cp, ds, cd, dev: _load_checkpoint_summary(state, cp, ds, cd or None, dev or None),
@@ -298,13 +372,13 @@ def build_app(
         render_button.click(
             fn=lambda cp, ds, cd, dev, a, b, s: _render(state, cp, ds, cd or None, dev or None, a, b, s),
             inputs=[checkpoint, dataset, cache, device, index_a, index_b, steps],
-            outputs=[info, original_a, recon_a, original_b, recon_b, gallery],
+            outputs=[info, original_a, recon_a, original_b, recon_b, playback],
         )
 
         app.load(
             fn=lambda cp, ds, cd, dev, a, b, s: _render(state, cp, ds, cd or None, dev or None, a, b, s),
             inputs=[checkpoint, dataset, cache, device, index_a, index_b, steps],
-            outputs=[info, original_a, recon_a, original_b, recon_b, gallery],
+            outputs=[info, original_a, recon_a, original_b, recon_b, playback],
         )
 
     return app, theme, css
