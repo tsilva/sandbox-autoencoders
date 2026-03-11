@@ -16,6 +16,10 @@ class VAEOutput:
     logvar: torch.Tensor
 
 
+def _group_norm(channels: int) -> nn.GroupNorm:
+    return nn.GroupNorm(num_groups=8, num_channels=channels)
+
+
 class ConvVAE(nn.Module):
     def __init__(self, image_spec: ImageSpec, latent_dim: int = 128) -> None:
         super().__init__()
@@ -26,19 +30,19 @@ class ConvVAE(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _group_norm(32),
             nn.SiLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _group_norm(64),
             nn.SiLU(),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _group_norm(128),
             nn.SiLU(),
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
+            _group_norm(256),
             nn.SiLU(),
             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(512),
+            _group_norm(512),
             nn.SiLU(),
         )
 
@@ -50,28 +54,32 @@ class ConvVAE(nn.Module):
 
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(256),
+            _group_norm(256),
             nn.SiLU(),
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(128),
+            _group_norm(128),
             nn.SiLU(),
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            _group_norm(64),
             nn.SiLU(),
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            _group_norm(32),
             nn.SiLU(),
             nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(16),
+            _group_norm(16),
             nn.SiLU(),
             nn.Conv2d(16, 3, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )
+        nn.init.zeros_(self.fc_logvar.weight)
+        nn.init.zeros_(self.fc_logvar.bias)
 
     def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         features = self.encoder(x)
         features = torch.flatten(features, start_dim=1)
-        return self.fc_mu(features), self.fc_logvar(features)
+        mu = self.fc_mu(features)
+        logvar = torch.clamp(self.fc_logvar(features), min=-8.0, max=8.0)
+        return mu, logvar
 
     def reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         std = torch.exp(0.5 * logvar)
@@ -98,11 +106,13 @@ def vae_loss(
     beta: float,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     batch_size = target.size(0)
-    recon_loss = F.mse_loss(reconstruction, target, reduction="sum") / batch_size
+    recon_mse = F.mse_loss(reconstruction, target, reduction="mean")
+    recon_loss = recon_mse * target[0].numel()
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / batch_size
     total_loss = recon_loss + beta * kl_loss
     return total_loss, {
         "loss": total_loss.item(),
         "recon_loss": recon_loss.item(),
+        "recon_mse": recon_mse.item(),
         "kl_loss": kl_loss.item(),
     }

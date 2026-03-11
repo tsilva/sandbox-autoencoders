@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import torch
@@ -27,9 +28,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument("--learning-rate", type=float, default=1e-3)
+    parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--latent-dim", type=int, default=128)
-    parser.add_argument("--beta", type=float, default=0.01)
+    parser.add_argument("--beta", type=float, default=0.001)
+    parser.add_argument("--beta-warmup-epochs", type=int, default=10)
+    parser.add_argument("--grad-clip-norm", type=float, default=1.0)
+    parser.add_argument("--early-stopping-patience", type=int, default=8)
+    parser.add_argument("--early-stopping-min-delta", type=float, default=2.0)
     parser.add_argument("--val-fraction", type=float, default=0.1)
     parser.add_argument("--max-train-batches", type=int)
     parser.add_argument("--max-val-batches", type=int)
@@ -37,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=256)
     parser.add_argument("--height", type=int, default=192)
     parser.add_argument("--device")
+    parser.add_argument("--resume-from")
     return parser.parse_args()
 
 
@@ -46,11 +52,19 @@ def run_epoch(
     optimizer: optim.Optimizer | None,
     device: torch.device,
     beta: float,
+    grad_clip_norm: float | None = None,
     max_batches: int | None = None,
 ) -> dict[str, float]:
     is_training = optimizer is not None
     model.train(is_training)
-    totals = {"loss": 0.0, "recon_loss": 0.0, "kl_loss": 0.0}
+    totals = {
+        "loss": 0.0,
+        "recon_loss": 0.0,
+        "recon_mse": 0.0,
+        "kl_loss": 0.0,
+        "mu_abs": 0.0,
+        "logvar_abs": 0.0,
+    }
     batch_count = 0
 
     for batch in tqdm(loader, leave=False):
@@ -58,9 +72,15 @@ def run_epoch(
         with torch.set_grad_enabled(is_training):
             output = model(images)
             loss, metrics = vae_loss(output.reconstruction, images, output.mu, output.logvar, beta)
+            if not torch.isfinite(loss):
+                raise RuntimeError("non-finite VAE loss encountered")
+            metrics["mu_abs"] = output.mu.abs().mean().item()
+            metrics["logvar_abs"] = output.logvar.abs().mean().item()
             if is_training:
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
+                if grad_clip_norm is not None and grad_clip_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip_norm)
                 optimizer.step()
         for key, value in metrics.items():
             totals[key] += value
@@ -83,6 +103,33 @@ def save_reconstruction_preview(
     reconstruction = model(images).reconstruction
     preview = torch.cat([images, reconstruction], dim=0)
     save_image(preview.cpu(), destination, nrow=8)
+
+
+def _collect_existing_records(checkpoints_dir: Path) -> list[dict[str, float | int]]:
+    records: list[dict[str, float | int]] = []
+    for checkpoint_path in sorted(checkpoints_dir.glob("epoch-*.pt")):
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        metrics = checkpoint.get("metrics")
+        if metrics:
+            records.append(metrics)
+    records.sort(key=lambda row: int(row["epoch"]))
+    return records
+
+
+def _compute_early_stop_state(
+    records: list[dict[str, float | int]],
+    min_delta: float,
+) -> tuple[float, int]:
+    best_val_loss = float("inf")
+    epochs_without_improvement = 0
+    for record in records:
+        val_loss = float(record["val_loss"])
+        if val_loss < best_val_loss - min_delta:
+            best_val_loss = val_loss
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+    return best_val_loss, epochs_without_improvement
 
 
 def main() -> None:
@@ -119,16 +166,38 @@ def main() -> None:
 
     model = ConvVAE(image_spec=image_spec, latent_dim=args.latent_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-    history: list[dict[str, float | int]] = []
-    best_val_loss = float("inf")
+    history = _collect_existing_records(checkpoints_dir)
+    if history:
+        write_json(output_dir / "history.json", history)
+    best_val_loss, epochs_without_improvement = _compute_early_stop_state(
+        history,
+        min_delta=args.early_stopping_min_delta,
+    )
+    start_epoch = 1
 
-    for epoch in range(1, args.epochs + 1):
+    if args.resume_from:
+        checkpoint = torch.load(args.resume_from, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer_state = checkpoint.get("optimizer_state_dict")
+        if optimizer_state:
+            optimizer.load_state_dict(optimizer_state)
+        start_epoch = int(checkpoint["epoch"]) + 1
+        print(
+            f"resuming from epoch={checkpoint['epoch']} "
+            f"best_val_loss={best_val_loss:.4f} "
+            f"early_stop_wait={epochs_without_improvement}/{args.early_stopping_patience}"
+        )
+
+    for epoch in range(start_epoch, args.epochs + 1):
+        beta_scale = min(1.0, epoch / max(1, args.beta_warmup_epochs))
+        current_beta = args.beta * beta_scale
         train_metrics = run_epoch(
             model,
             train_loader,
             optimizer,
             device,
-            args.beta,
+            current_beta,
+            grad_clip_norm=args.grad_clip_norm,
             max_batches=args.max_train_batches,
         )
         val_metrics = run_epoch(
@@ -136,22 +205,31 @@ def main() -> None:
             val_loader,
             None,
             device,
-            args.beta,
+            current_beta,
             max_batches=args.max_val_batches,
         )
         record = {
             "epoch": epoch,
+            "beta": current_beta,
             "train_loss": train_metrics["loss"],
             "train_recon_loss": train_metrics["recon_loss"],
+            "train_recon_mse": train_metrics["recon_mse"],
             "train_kl_loss": train_metrics["kl_loss"],
+            "train_mu_abs": train_metrics["mu_abs"],
+            "train_logvar_abs": train_metrics["logvar_abs"],
             "val_loss": val_metrics["loss"],
             "val_recon_loss": val_metrics["recon_loss"],
+            "val_recon_mse": val_metrics["recon_mse"],
             "val_kl_loss": val_metrics["kl_loss"],
+            "val_mu_abs": val_metrics["mu_abs"],
+            "val_logvar_abs": val_metrics["logvar_abs"],
         }
         history.append(record)
+        write_json(output_dir / "history.json", history)
 
         checkpoint = {
             "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
             "image_spec": {"width": image_spec.width, "height": image_spec.height},
             "latent_dim": args.latent_dim,
             "epoch": epoch,
@@ -160,21 +238,33 @@ def main() -> None:
         }
         epoch_path = checkpoints_dir / f"epoch-{epoch:03d}.pt"
         torch.save(checkpoint, epoch_path)
-        if val_metrics["loss"] < best_val_loss:
+        if val_metrics["loss"] < best_val_loss - args.early_stopping_min_delta:
             best_val_loss = val_metrics["loss"]
+            epochs_without_improvement = 0
             torch.save(checkpoint, checkpoints_dir / "best.pt")
+        else:
+            epochs_without_improvement += 1
 
         save_reconstruction_preview(model, val_loader, device, recon_dir / f"epoch-{epoch:03d}.png")
         print(
             f"epoch={epoch} "
+            f"beta={current_beta:.6f} "
             f"train_loss={train_metrics['loss']:.4f} "
             f"val_loss={val_metrics['loss']:.4f} "
+            f"val_recon_mse={val_metrics['recon_mse']:.6f} "
             f"val_recon={val_metrics['recon_loss']:.4f} "
-            f"val_kl={val_metrics['kl_loss']:.4f}"
+            f"val_kl={val_metrics['kl_loss']:.4f} "
+            f"val_mu_abs={val_metrics['mu_abs']:.4f} "
+            f"val_logvar_abs={val_metrics['logvar_abs']:.4f} "
+            f"early_stop_wait={epochs_without_improvement}/{args.early_stopping_patience}"
         )
-
-    write_json(output_dir / "history.json", history)
-
+        if epochs_without_improvement >= args.early_stopping_patience:
+            print(
+                f"early stopping at epoch={epoch} "
+                f"best_val_loss={best_val_loss:.4f} "
+                f"patience={args.early_stopping_patience}"
+            )
+            break
 
 if __name__ == "__main__":
     main()
