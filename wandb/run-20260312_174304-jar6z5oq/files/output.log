@@ -1,0 +1,8 @@
+{
+  "train": {
+    "duration_seconds": 308956.335,
+    "size_bytes": 15875736650.0,
+    "videos": 187
+  },
+  "val": {
+    "duration_seconds": 32362.09

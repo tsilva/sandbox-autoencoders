@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 import torch
@@ -56,6 +57,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wandb-entity")
     parser.add_argument("--wandb-run-name")
     parser.add_argument("--wandb-upload-every", type=int, default=1)
+    parser.add_argument("--wandb-log-every", type=int, default=25)
     return parser.parse_args()
 
 
@@ -67,6 +69,9 @@ def run_epoch(
     beta: float,
     grad_clip_norm: float | None = None,
     max_batches: int | None = None,
+    wandb_run=None,
+    wandb_log_every: int | None = None,
+    step_offset: int = 0,
 ) -> dict[str, float]:
     is_training = optimizer is not None
     model.train(is_training)
@@ -82,6 +87,7 @@ def run_epoch(
     batch_count = 0
 
     for batch in tqdm(loader, leave=False):
+        batch_start = time.perf_counter()
         images = batch["image"].to(device)
         with torch.set_grad_enabled(is_training):
             output = model(images)
@@ -99,6 +105,22 @@ def run_epoch(
         for key, value in metrics.items():
             totals[key] += value
         batch_count += 1
+        if is_training and wandb_run is not None and wandb_log_every and batch_count % wandb_log_every == 0:
+            batch_seconds = time.perf_counter() - batch_start
+            wandb_run.log(
+                {
+                    "train_batch/loss": metrics["loss"],
+                    "train_batch/recon_loss": metrics["recon_loss"],
+                    "train_batch/recon_l1": metrics["recon_l1"],
+                    "train_batch/recon_mse": metrics["recon_mse"],
+                    "train_batch/kl_loss": metrics["kl_loss"],
+                    "train_batch/mu_abs": metrics["mu_abs"],
+                    "train_batch/logvar_abs": metrics["logvar_abs"],
+                    "train_batch/beta": beta,
+                    "train_batch/samples_per_second": images.size(0) / max(batch_seconds, 1e-6),
+                },
+                step=step_offset + batch_count,
+            )
         if max_batches is not None and batch_count >= max_batches:
             break
 
@@ -246,6 +268,7 @@ def main() -> None:
             train_dataset.set_epoch(epoch - 1)
         beta_scale = min(1.0, epoch / max(1, args.beta_warmup_epochs))
         current_beta = args.beta * beta_scale
+        train_step_offset = (epoch - 1) * (args.max_train_batches or len(train_loader))
         train_metrics = run_epoch(
             model,
             train_loader,
@@ -254,6 +277,9 @@ def main() -> None:
             current_beta,
             grad_clip_norm=args.grad_clip_norm,
             max_batches=args.max_train_batches,
+            wandb_run=wandb_run,
+            wandb_log_every=args.wandb_log_every,
+            step_offset=train_step_offset,
         )
         val_metrics = run_epoch(
             model,

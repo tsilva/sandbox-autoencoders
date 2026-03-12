@@ -1,0 +1,27 @@
+{
+  "train": {
+    "duration_seconds": 308956.335,
+    "size_bytes": 15875736650.0,
+    "videos": 187
+  },
+  "val": {
+    "duration_seconds": 32362.096,
+    "size_bytes": 1957259619.0,
+    "videos": 22
+  }
+}
+Traceback (most recent call last):                                                                                                                                                                                                                          
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/src/sandbox_autoencoders/train.py", line 352, in <module>
+    main()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/src/sandbox_autoencoders/train.py", line 249, in main
+    train_metrics = run_epoch(
+                    ^^^^^^^^^^
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/src/sandbox_autoencoders/train.py", line 88, in run_epoch
+    loss, metrics = vae_loss(output.reconstruction, images, output.mu, output.logvar, beta)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/src/sandbox_autoencoders/model.py", line 141, in vae_loss
+    "loss": total_loss.item(),
+            ^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

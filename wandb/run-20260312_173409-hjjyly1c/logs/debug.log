@@ -1,0 +1,231 @@
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_setup.py:_flush():81] Current SDK version is 0.25.1
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_setup.py:_flush():81] Configure stats pid to 84405
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_init.py:setup_run_log_directory():717] Logging user logs to /Users/tsilva/repos/tsilva/sandbox-autoencoders/wandb/run-20260312_173409-hjjyly1c/logs/debug.log
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_init.py:setup_run_log_directory():718] Logging internal logs to /Users/tsilva/repos/tsilva/sandbox-autoencoders/wandb/run-20260312_173409-hjjyly1c/logs/debug-internal.log
+2026-03-12 17:34:09,847 INFO    MainThread:84405 [wandb_init.py:init():844] calling init triggers
+2026-03-12 17:34:09,848 INFO    MainThread:84405 [wandb_init.py:init():849] wandb.init called with sweep_config: {}
+config: {'manifest': 'outputs/video-manifests/local-videos.jsonl', 'output_dir': 'outputs/zx-local-run', 'epochs': 40, 'batch_size': 32, 'num_workers': 4, 'persistent_workers': True, 'pin_memory': False, 'learning_rate': 0.0003, 'latent_dim': 128, 'beta': 0.001, 'beta_warmup_epochs': 10, 'grad_clip_norm': 1.0, 'early_stopping_patience': 8, 'early_stopping_min_delta': 2.0, 'train_samples_per_epoch': 100000, 'val_samples': 4096, 'sampling_weight': 'sqrt_duration', 'video_burst_size': 16, 'burst_span_seconds': 1.5, 'val_video_burst_size': 1, 'val_burst_span_seconds': 0.0, 'max_open_captures': 8, 'max_decode_attempts': 4, 'max_sequential_gap_frames': 120, 'max_train_batches': None, 'max_val_batches': None, 'seed': 42, 'width': 256, 'height': 192, 'device': None, 'resume_from': None, 'wandb_project': 'zx-spectrum-vae', 'wandb_entity': None, 'wandb_run_name': None, 'wandb_upload_every': 1, '_wandb': {}}
+2026-03-12 17:34:09,848 INFO    MainThread:84405 [wandb_init.py:init():892] starting backend
+2026-03-12 17:34:11,409 INFO    MainThread:84405 [wandb_init.py:init():895] sending inform_init request
+2026-03-12 17:34:11,492 INFO    MainThread:84405 [wandb_init.py:init():903] backend started and connected
+2026-03-12 17:34:11,542 INFO    MainThread:84405 [wandb_init.py:init():973] updated telemetry
+2026-03-12 17:34:11,588 INFO    MainThread:84405 [wandb_init.py:init():997] communicating run to backend with 90.0 second timeout
+2026-03-12 17:34:12,990 INFO    MainThread:84405 [wandb_init.py:init():1042] starting run threads in backend
+2026-03-12 17:34:13,036 INFO    MainThread:84405 [wandb_run.py:_console_start():2524] atexit reg
+2026-03-12 17:34:13,036 INFO    MainThread:84405 [wandb_run.py:_redirect():2373] redirect: wrap_raw
+2026-03-12 17:34:13,036 INFO    MainThread:84405 [wandb_run.py:_redirect():2442] Wrapping output streams.
+2026-03-12 17:34:13,036 INFO    MainThread:84405 [wandb_run.py:_redirect():2465] Redirects installed.
+2026-03-12 17:34:13,044 INFO    MainThread:84405 [wandb_init.py:init():1082] run started, returning control to user process
+2026-03-12 17:42:34,223 INFO    wandb-AsyncioManager-main:84405 [service_client.py:_forward_responses():134] Reached EOF.
+2026-03-12 17:42:34,228 INFO    wandb-AsyncioManager-main:84405 [mailbox.py:close():155] Closing mailbox, abandoning 1 handles.
+2026-03-12 17:42:34,462 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,473 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,480 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,481 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,487 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,493 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,494 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,495 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,495 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,496 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,497 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,499 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,499 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2026-03-12 17:42:34,502 ERROR   wandb-AsyncioManager-main:84405 [asyncio_manager.py:fn_wrap_exceptions():184] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/asyncio_manager.py", line 182, in fn_wrap_exceptions
+    await fn()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 45, in publish
+    await self._send_server_request(request)
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 87, in _send_server_request
+    await self._drain_writer()
+  File "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/lib/python3.11/site-packages/wandb/sdk/lib/service/service_client.py", line 96, in _drain_writer
+    await self._writer.drain()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 378, in drain
+    await self._protocol._drain_helper()
+  File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost

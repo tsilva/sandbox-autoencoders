@@ -1,0 +1,78 @@
+{
+  "os": "macOS-26.3-arm64-arm-64bit",
+  "python": "CPython 3.11.0",
+  "startedAt": "2026-03-12T17:34:09.844816Z",
+  "args": [
+    "--manifest",
+    "outputs/video-manifests/local-videos.jsonl",
+    "--output-dir",
+    "outputs/zx-local-run",
+    "--epochs",
+    "40",
+    "--batch-size",
+    "32",
+    "--num-workers",
+    "4",
+    "--persistent-workers",
+    "--learning-rate",
+    "3e-4",
+    "--latent-dim",
+    "128",
+    "--beta",
+    "0.001",
+    "--beta-warmup-epochs",
+    "10",
+    "--train-samples-per-epoch",
+    "100000",
+    "--val-samples",
+    "4096",
+    "--sampling-weight",
+    "sqrt_duration",
+    "--video-burst-size",
+    "16",
+    "--burst-span-seconds",
+    "1.5",
+    "--val-video-burst-size",
+    "1",
+    "--val-burst-span-seconds",
+    "0.0",
+    "--max-open-captures",
+    "8",
+    "--max-decode-attempts",
+    "4",
+    "--max-sequential-gap-frames",
+    "120",
+    "--wandb-project",
+    "zx-spectrum-vae"
+  ],
+  "program": "-m sandbox_autoencoders.train",
+  "git": {
+    "remote": "git@github.com:tsilva/sandbox-autoencoders.git",
+    "commit": "7f58da8ffd251b294a7e1d5785c6626624a19934"
+  },
+  "email": "eng.tiago.silva@gmail.com",
+  "root": "/Users/tsilva/repos/tsilva/sandbox-autoencoders",
+  "host": "Tiagos-MacBook-Pro.local",
+  "executable": "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/bin/python3",
+  "cpu_count": 8,
+  "cpu_count_logical": 8,
+  "disk": {
+    "/": {
+      "total": "494384795648",
+      "used": "422064209920"
+    }
+  },
+  "memory": {
+    "total": "17179869184"
+  },
+  "apple": {
+    "name": "Apple M1 Pro",
+    "ecpuCores": 2,
+    "pcpuCores": 6,
+    "gpuCores": 14,
+    "memoryGb": 16,
+    "swapTotalBytes": "16106127360",
+    "ramTotalBytes": "17179869184"
+  },
+  "writerId": "c3rinedn1802yjf3aqg8z4g39bc368rb"
+}
