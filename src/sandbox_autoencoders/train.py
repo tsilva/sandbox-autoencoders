@@ -11,23 +11,23 @@ from torchvision.utils import save_image
 from tqdm import tqdm
 
 from sandbox_autoencoders.data import (
-    DEFAULT_DATASET,
     ImageSpec,
     collate_frames,
-    load_frame_splits,
 )
+from sandbox_autoencoders.local_video_data import SampledVideoFrameDataset, load_manifest, summarize_records
 from sandbox_autoencoders.model import ConvVAE, vae_loss
 from sandbox_autoencoders.utils import choose_device, ensure_dir, set_seed, write_json
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a convolutional VAE on ZX Spectrum frames.")
-    parser.add_argument("--dataset", default=DEFAULT_DATASET)
-    parser.add_argument("--cache-dir")
+    parser.add_argument("--manifest", required=True)
     parser.add_argument("--output-dir", default="outputs/default-run")
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--persistent-workers", action="store_true")
+    parser.add_argument("--pin-memory", action="store_true")
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--latent-dim", type=int, default=128)
     parser.add_argument("--beta", type=float, default=0.001)
@@ -35,7 +35,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grad-clip-norm", type=float, default=1.0)
     parser.add_argument("--early-stopping-patience", type=int, default=8)
     parser.add_argument("--early-stopping-min-delta", type=float, default=2.0)
-    parser.add_argument("--val-fraction", type=float, default=0.1)
+    parser.add_argument("--train-samples-per-epoch", type=int, default=100_000)
+    parser.add_argument("--val-samples", type=int, default=4_096)
+    parser.add_argument("--sampling-weight", default="sqrt_duration", choices=["uniform", "duration", "sqrt_duration"])
+    parser.add_argument("--video-burst-size", type=int, default=16)
+    parser.add_argument("--burst-span-seconds", type=float, default=1.5)
+    parser.add_argument("--val-video-burst-size", type=int, default=1)
+    parser.add_argument("--val-burst-span-seconds", type=float, default=0.0)
+    parser.add_argument("--max-open-captures", type=int, default=8)
+    parser.add_argument("--max-decode-attempts", type=int, default=4)
+    parser.add_argument("--max-sequential-gap-frames", type=int, default=120)
     parser.add_argument("--max-train-batches", type=int)
     parser.add_argument("--max-val-batches", type=int)
     parser.add_argument("--seed", type=int, default=42)
@@ -60,6 +69,7 @@ def run_epoch(
     totals = {
         "loss": 0.0,
         "recon_loss": 0.0,
+        "recon_l1": 0.0,
         "recon_mse": 0.0,
         "kl_loss": 0.0,
         "mu_abs": 0.0,
@@ -142,26 +152,51 @@ def main() -> None:
     checkpoints_dir = ensure_dir(output_dir / "checkpoints")
     recon_dir = ensure_dir(output_dir / "reconstructions")
 
-    train_dataset, val_dataset = load_frame_splits(
-        dataset_name=args.dataset,
+    loader_kwargs = {
+        "batch_size": args.batch_size,
+        "num_workers": args.num_workers,
+        "collate_fn": collate_frames,
+        "pin_memory": args.pin_memory,
+    }
+    if args.num_workers > 0:
+        loader_kwargs["persistent_workers"] = args.persistent_workers
+
+    train_records = load_manifest(args.manifest, split="train")
+    val_records = load_manifest(args.manifest, split="val")
+    print(json.dumps(summarize_records(train_records + val_records), indent=2, sort_keys=True))
+    train_dataset = SampledVideoFrameDataset(
+        records=train_records,
         image_spec=image_spec,
-        val_fraction=args.val_fraction,
+        samples_per_epoch=args.train_samples_per_epoch,
+        sampling_weight=args.sampling_weight,
         seed=args.seed,
-        cache_dir=args.cache_dir,
+        video_burst_size=args.video_burst_size,
+        burst_span_seconds=args.burst_span_seconds,
+        max_open_captures=args.max_open_captures,
+        max_decode_attempts=args.max_decode_attempts,
+        max_sequential_gap_frames=args.max_sequential_gap_frames,
+    )
+    val_dataset = SampledVideoFrameDataset(
+        records=val_records,
+        image_spec=image_spec,
+        samples_per_epoch=args.val_samples,
+        sampling_weight=args.sampling_weight,
+        seed=args.seed + 1,
+        video_burst_size=args.val_video_burst_size,
+        burst_span_seconds=args.val_burst_span_seconds,
+        max_open_captures=args.max_open_captures,
+        max_decode_attempts=args.max_decode_attempts,
+        max_sequential_gap_frames=args.max_sequential_gap_frames,
     )
     train_loader = DataLoader(
         train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate_frames,
+        shuffle=False,
+        **loader_kwargs,
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=args.batch_size,
         shuffle=False,
-        num_workers=args.num_workers,
-        collate_fn=collate_frames,
+        **loader_kwargs,
     )
 
     model = ConvVAE(image_spec=image_spec, latent_dim=args.latent_dim).to(device)
@@ -189,6 +224,8 @@ def main() -> None:
         )
 
     for epoch in range(start_epoch, args.epochs + 1):
+        if isinstance(train_dataset, SampledVideoFrameDataset):
+            train_dataset.set_epoch(epoch - 1)
         beta_scale = min(1.0, epoch / max(1, args.beta_warmup_epochs))
         current_beta = args.beta * beta_scale
         train_metrics = run_epoch(
@@ -213,12 +250,14 @@ def main() -> None:
             "beta": current_beta,
             "train_loss": train_metrics["loss"],
             "train_recon_loss": train_metrics["recon_loss"],
+            "train_recon_l1": train_metrics["recon_l1"],
             "train_recon_mse": train_metrics["recon_mse"],
             "train_kl_loss": train_metrics["kl_loss"],
             "train_mu_abs": train_metrics["mu_abs"],
             "train_logvar_abs": train_metrics["logvar_abs"],
             "val_loss": val_metrics["loss"],
             "val_recon_loss": val_metrics["recon_loss"],
+            "val_recon_l1": val_metrics["recon_l1"],
             "val_recon_mse": val_metrics["recon_mse"],
             "val_kl_loss": val_metrics["kl_loss"],
             "val_mu_abs": val_metrics["mu_abs"],
@@ -251,6 +290,7 @@ def main() -> None:
             f"beta={current_beta:.6f} "
             f"train_loss={train_metrics['loss']:.4f} "
             f"val_loss={val_metrics['loss']:.4f} "
+            f"val_recon_l1={val_metrics['recon_l1']:.6f} "
             f"val_recon_mse={val_metrics['recon_mse']:.6f} "
             f"val_recon={val_metrics['recon_loss']:.4f} "
             f"val_kl={val_metrics['kl_loss']:.4f} "

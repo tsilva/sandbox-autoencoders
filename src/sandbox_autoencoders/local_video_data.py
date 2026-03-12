@@ -208,6 +208,7 @@ class SampledVideoFrameDataset(Dataset):
         self.max_decode_attempts = max_decode_attempts
         self.max_sequential_gap_frames = max_sequential_gap_frames
         self.sampling_weight = sampling_weight
+        self.epoch = 0
 
         self._capture_cache: OrderedDict[str, CaptureState] = OrderedDict()
         self._weights = self._build_weights(records, sampling_weight)
@@ -253,10 +254,16 @@ class SampledVideoFrameDataset(Dataset):
             state.capture.release()
         self._capture_cache.clear()
 
+    def set_epoch(self, epoch: int) -> None:
+        if epoch < 0:
+            raise ValueError("epoch must be non-negative")
+        self.epoch = epoch
+        self.close()
+
     def _sample_candidate(self, index: int, attempt: int) -> tuple[VideoRecord, float]:
         burst_index = index // self.video_burst_size
         offset_in_burst = index % self.video_burst_size
-        rng = random.Random(self.seed + burst_index + attempt * 1_000_003)
+        rng = random.Random(self.seed + self.epoch * 10_000_019 + burst_index + attempt * 1_000_003)
         record = self._sample_record(rng)
         timestamp = self._sample_timestamp(
             record=record,
