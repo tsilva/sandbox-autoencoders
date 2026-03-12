@@ -66,3 +66,34 @@ The UI lets you:
 - scrub frame indices
 - compare original frames against endpoint reconstructions
 - play back the decoded latent path as a looping video
+
+## Local Video Manifest
+
+Build a JSONL manifest from a local directory of videos:
+
+```bash
+python -m sandbox_autoencoders.build_video_manifest \
+  --video-dir ~/Desktop/videos \
+  --output outputs/video-manifests/local-videos.jsonl
+```
+
+The manifest stores one row per video with duration, fps, dimensions, byte size, and a deterministic `train`/`val`/`test` split.
+
+`ffprobe` must be available on your `PATH`.
+
+## Benchmark Local Video Loading
+
+Measure dataloader throughput against the manifest:
+
+```bash
+python -m sandbox_autoencoders.benchmark_video_loader \
+  --manifest outputs/video-manifests/local-videos.jsonl \
+  --split train \
+  --samples 4096 \
+  --batch-size 32 \
+  --num-workers 4 \
+  --pin-memory \
+  --persistent-workers
+```
+
+This benchmark samples random frames from held-out videos on demand and reports effective samples/sec so you can decide whether offline frame extraction is necessary.

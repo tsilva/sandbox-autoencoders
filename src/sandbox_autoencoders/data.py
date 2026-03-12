@@ -23,7 +23,7 @@ class ImageSpec:
     height: int = 192
 
 
-def _resize_with_padding(image: Image.Image, spec: ImageSpec) -> torch.Tensor:
+def resize_with_padding(image: Image.Image, spec: ImageSpec) -> torch.Tensor:
     image = image.convert("RGB")
     width, height = image.size
     scale = min(spec.width / width, spec.height / height)
@@ -103,7 +103,7 @@ class HuggingFaceFrameDataset(Dataset):
         row = self.rows[index]
         image_data = row["image"]
         image = Image.open(BytesIO(image_data["bytes"])).convert("RGB")
-        image = _resize_with_padding(image, self.image_spec)
+        image = resize_with_padding(image, self.image_spec)
         return {
             "image": image,
             "frame_id": row["frame_id"],
