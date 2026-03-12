@@ -4,6 +4,7 @@ import bisect
 import hashlib
 import json
 import math
+import os
 import random
 import subprocess
 from collections import OrderedDict
@@ -36,9 +37,22 @@ class VideoRecord:
 
 
 def discover_videos(video_dir: str | Path, extensions: Iterable[str] = VIDEO_EXTENSIONS) -> list[Path]:
-    root = Path(video_dir).expanduser().resolve()
+    raw_root = Path(video_dir).expanduser()
+    if not raw_root.exists():
+        raise FileNotFoundError(f"video directory does not exist: {raw_root}")
+    if not raw_root.is_dir():
+        raise NotADirectoryError(f"video directory is not a directory: {raw_root}")
+
+    root = raw_root.resolve()
     allowed = {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions}
-    return sorted(path for path in root.rglob("*") if path.is_file() and path.suffix.lower() in allowed)
+    matches: list[Path] = []
+    for current_root, _, filenames in os.walk(root, followlinks=True):
+        current_path = Path(current_root)
+        for filename in filenames:
+            path = current_path / filename
+            if path.suffix.lower() in allowed:
+                matches.append(path)
+    return sorted(matches)
 
 
 def probe_video(path: str | Path) -> VideoRecord:

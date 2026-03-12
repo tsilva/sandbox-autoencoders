@@ -31,10 +31,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    root = args.video_dir
+    root = Path(args.video_dir).expanduser().resolve()
+    print(f"scanning video_dir={root}")
     records: list[VideoRecord] = []
     failures = 0
     paths = discover_videos(root, extensions=args.extensions)
+    if not paths:
+        extension_list = ", ".join(args.extensions)
+        raise RuntimeError(f"no video files found under {root} matching extensions: {extension_list}")
     with tqdm(total=len(paths), desc="probe", unit="video") as progress:
         progress.set_postfix(written=0, failed=0)
         for path in paths:
