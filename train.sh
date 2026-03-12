@@ -22,4 +22,4 @@ python3 -m sandbox_autoencoders.train \
   --max-open-captures 8 \
   --max-decode-attempts 4 \
   --max-sequential-gap-frames 120 \
-  --hf-repo-id tsilva/zx-spectrum-vae
+  --wandb-project zx-spectrum-vae
