@@ -54,5 +54,25 @@
   "root": "/Users/tsilva/repos/tsilva/sandbox-autoencoders",
   "host": "Tiagos-MacBook-Pro.local",
   "executable": "/Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/bin/python3",
+  "cpu_count": 8,
+  "cpu_count_logical": 8,
+  "disk": {
+    "/": {
+      "total": "494384795648",
+      "used": "423265271808"
+    }
+  },
+  "memory": {
+    "total": "17179869184"
+  },
+  "apple": {
+    "name": "Apple M1 Pro",
+    "ecpuCores": 2,
+    "pcpuCores": 6,
+    "gpuCores": 14,
+    "memoryGb": 16,
+    "swapTotalBytes": "17179869184",
+    "ramTotalBytes": "17179869184"
+  },
   "writerId": "qxlgl1olpzcqftmebofumr9mm7czqj30"
 }
