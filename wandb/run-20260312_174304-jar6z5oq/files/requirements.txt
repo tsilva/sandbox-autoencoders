@@ -27,7 +27,7 @@ pillow==12.1.1
 httpcore==1.0.9
 filelock==3.25.2
 opencv-python-headless==4.13.0.92
-setuptools==65.5.0
+setuptools==78.1.1
 tomlkit==0.13.3
 sympy==1.14.0
 markdown-it-py==4.0.0
