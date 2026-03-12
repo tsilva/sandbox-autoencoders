@@ -36,6 +36,12 @@ class VideoRecord:
     size_bytes: int
 
 
+@dataclass
+class CaptureState:
+    capture: cv2.VideoCapture
+    next_frame_index: int | None = None
+
+
 def discover_videos(video_dir: str | Path, extensions: Iterable[str] = VIDEO_EXTENSIONS) -> list[Path]:
     raw_root = Path(video_dir).expanduser()
     if not raw_root.exists():
@@ -169,17 +175,26 @@ class SampledVideoFrameDataset(Dataset):
         samples_per_epoch: int,
         sampling_weight: str = "duration",
         seed: int = 42,
+        video_burst_size: int = 1,
+        burst_span_seconds: float = 0.0,
         max_open_captures: int = 8,
         max_decode_attempts: int = 3,
+        max_sequential_gap_frames: int = 120,
     ) -> None:
         if not records:
             raise ValueError("at least one video record is required")
         if samples_per_epoch <= 0:
             raise ValueError("samples_per_epoch must be positive")
+        if video_burst_size <= 0:
+            raise ValueError("video_burst_size must be positive")
+        if burst_span_seconds < 0:
+            raise ValueError("burst_span_seconds must be non-negative")
         if max_open_captures <= 0:
             raise ValueError("max_open_captures must be positive")
         if max_decode_attempts <= 0:
             raise ValueError("max_decode_attempts must be positive")
+        if max_sequential_gap_frames < 0:
+            raise ValueError("max_sequential_gap_frames must be non-negative")
 
         cv2.setNumThreads(1)
 
@@ -187,11 +202,14 @@ class SampledVideoFrameDataset(Dataset):
         self.image_spec = image_spec
         self.samples_per_epoch = samples_per_epoch
         self.seed = seed
+        self.video_burst_size = video_burst_size
+        self.burst_span_seconds = burst_span_seconds
         self.max_open_captures = max_open_captures
         self.max_decode_attempts = max_decode_attempts
+        self.max_sequential_gap_frames = max_sequential_gap_frames
         self.sampling_weight = sampling_weight
 
-        self._capture_cache: OrderedDict[str, cv2.VideoCapture] = OrderedDict()
+        self._capture_cache: OrderedDict[str, CaptureState] = OrderedDict()
         self._weights = self._build_weights(records, sampling_weight)
         total_weight = sum(self._weights)
         if total_weight <= 0:
@@ -208,11 +226,9 @@ class SampledVideoFrameDataset(Dataset):
         return self.samples_per_epoch
 
     def __getitem__(self, index: int) -> dict[str, object]:
-        rng = random.Random(self.seed + index)
         last_error: Exception | None = None
-        for _ in range(self.max_decode_attempts):
-            record = self._sample_record(rng)
-            timestamp = self._sample_timestamp(record, rng)
+        for attempt in range(self.max_decode_attempts):
+            record, timestamp = self._sample_candidate(index=index, attempt=attempt)
             try:
                 image = self._decode_frame(record, timestamp)
             except Exception as exc:  # pragma: no cover - exercised by real videos
@@ -233,41 +249,59 @@ class SampledVideoFrameDataset(Dataset):
         return state
 
     def close(self) -> None:
-        for capture in self._capture_cache.values():
-            capture.release()
+        for state in self._capture_cache.values():
+            state.capture.release()
         self._capture_cache.clear()
+
+    def _sample_candidate(self, index: int, attempt: int) -> tuple[VideoRecord, float]:
+        burst_index = index // self.video_burst_size
+        offset_in_burst = index % self.video_burst_size
+        rng = random.Random(self.seed + burst_index + attempt * 1_000_003)
+        record = self._sample_record(rng)
+        timestamp = self._sample_timestamp(
+            record=record,
+            rng=rng,
+            offset_in_burst=offset_in_burst,
+        )
+        return record, timestamp
 
     def _sample_record(self, rng: random.Random) -> VideoRecord:
         needle = rng.random() * self._total_weight
         index = bisect.bisect_left(self._cumulative_weights, needle)
         return self.records[min(index, len(self.records) - 1)]
 
-    def _sample_timestamp(self, record: VideoRecord, rng: random.Random) -> float:
+    def _sample_timestamp(
+        self,
+        record: VideoRecord,
+        rng: random.Random,
+        offset_in_burst: int,
+    ) -> float:
         if record.duration_seconds <= 0:
             return 0.0
         max_timestamp = max(0.0, record.duration_seconds - 1e-3)
-        return rng.uniform(0.0, max_timestamp)
+        if self.video_burst_size <= 1 or self.burst_span_seconds <= 0:
+            return rng.uniform(0.0, max_timestamp)
+
+        span = min(self.burst_span_seconds, max_timestamp)
+        if span <= 0:
+            return rng.uniform(0.0, max_timestamp)
+
+        start = rng.uniform(0.0, max(0.0, max_timestamp - span))
+        if self.video_burst_size == 1:
+            return start
+        step = span / max(1, self.video_burst_size - 1)
+        timestamp = start + offset_in_burst * step
+        return min(max(timestamp, 0.0), max_timestamp)
 
     def _decode_frame(self, record: VideoRecord, timestamp: float):
-        capture = self._get_capture(record.path)
-        frame_index = 0
-        if record.frame_count > 0 and record.duration_seconds > 0:
-            frame_index = min(record.frame_count - 1, max(0, round(timestamp / record.duration_seconds * (record.frame_count - 1))))
-        elif record.fps > 0:
-            frame_index = max(0, round(timestamp * record.fps))
-
-        if frame_index > 0:
-            capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
-        else:
-            capture.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000.0)
-
-        ok, frame = capture.read()
+        state = self._get_capture_state(record.path)
+        frame_index = self._resolve_frame_index(record, timestamp)
+        ok, frame = self._read_frame(state=state, frame_index=frame_index, timestamp=timestamp)
         if not ok or frame is None:
-            capture.release()
+            state.capture.release()
             self._capture_cache.pop(record.path, None)
-            capture = self._get_capture(record.path)
-            capture.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000.0)
-            ok, frame = capture.read()
+            state = self._get_capture_state(record.path)
+            ok, frame = self._read_frame(state=state, frame_index=frame_index, timestamp=timestamp)
         if not ok or frame is None:
             raise RuntimeError(f"failed to decode frame from {record.path}")
 
@@ -275,17 +309,56 @@ class SampledVideoFrameDataset(Dataset):
         image = Image.fromarray(frame)
         return resize_with_padding(image, self.image_spec)
 
-    def _get_capture(self, path: str) -> cv2.VideoCapture:
-        capture = self._capture_cache.pop(path, None)
-        if capture is None:
+    def _resolve_frame_index(self, record: VideoRecord, timestamp: float) -> int:
+        if record.frame_count > 0 and record.duration_seconds > 0:
+            return min(record.frame_count - 1, max(0, round(timestamp / record.duration_seconds * (record.frame_count - 1))))
+        if record.fps > 0:
+            return max(0, round(timestamp * record.fps))
+        return 0
+
+    def _read_frame(
+        self,
+        state: CaptureState,
+        frame_index: int,
+        timestamp: float,
+    ) -> tuple[bool, object]:
+        if state.next_frame_index is not None:
+            gap = frame_index - state.next_frame_index
+            if 0 <= gap <= self.max_sequential_gap_frames:
+                for _ in range(gap):
+                    ok, _ = state.capture.read()
+                    if not ok:
+                        break
+                else:
+                    ok, frame = state.capture.read()
+                    if ok and frame is not None:
+                        state.next_frame_index = frame_index + 1
+                        return ok, frame
+
+        if frame_index > 0:
+            state.capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+        else:
+            state.capture.set(cv2.CAP_PROP_POS_MSEC, timestamp * 1000.0)
+
+        ok, frame = state.capture.read()
+        if ok and frame is not None:
+            state.next_frame_index = frame_index + 1
+        else:
+            state.next_frame_index = None
+        return ok, frame
+
+    def _get_capture_state(self, path: str) -> CaptureState:
+        state = self._capture_cache.pop(path, None)
+        if state is None:
             capture = cv2.VideoCapture(path)
             if not capture.isOpened():
                 raise RuntimeError(f"failed to open video {path}")
-        self._capture_cache[path] = capture
+            state = CaptureState(capture=capture)
+        self._capture_cache[path] = state
         while len(self._capture_cache) > self.max_open_captures:
-            _, stale_capture = self._capture_cache.popitem(last=False)
-            stale_capture.release()
-        return capture
+            _, stale_state = self._capture_cache.popitem(last=False)
+            stale_state.capture.release()
+        return state
 
     @staticmethod
     def _build_weights(records: list[VideoRecord], sampling_weight: str) -> list[float]:

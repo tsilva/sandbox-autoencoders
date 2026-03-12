@@ -22,8 +22,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--height", type=int, default=192)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sampling-weight", default="duration", choices=("uniform", "duration", "sqrt_duration"))
+    parser.add_argument("--video-burst-size", type=int, default=1)
+    parser.add_argument("--burst-span-seconds", type=float, default=0.0)
     parser.add_argument("--max-open-captures", type=int, default=8)
     parser.add_argument("--max-decode-attempts", type=int, default=3)
+    parser.add_argument("--max-sequential-gap-frames", type=int, default=120)
     parser.add_argument("--warmup-batches", type=int, default=2)
     parser.add_argument("--report-every", type=int, default=25)
     parser.add_argument("--pin-memory", action="store_true")
@@ -49,8 +52,11 @@ def main() -> None:
         samples_per_epoch=args.samples,
         sampling_weight=args.sampling_weight,
         seed=args.seed,
+        video_burst_size=args.video_burst_size,
+        burst_span_seconds=args.burst_span_seconds,
         max_open_captures=args.max_open_captures,
         max_decode_attempts=args.max_decode_attempts,
+        max_sequential_gap_frames=args.max_sequential_gap_frames,
     )
 
     loader = DataLoader(
@@ -101,6 +107,8 @@ def main() -> None:
     results = {
         "split": args.split,
         "videos": len(records),
+        "video_burst_size": args.video_burst_size,
+        "burst_span_seconds": args.burst_span_seconds,
         "samples": total_samples,
         "batches": total_batches,
         "measured_samples": measured_samples,

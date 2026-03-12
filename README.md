@@ -92,8 +92,12 @@ python -m sandbox_autoencoders.benchmark_video_loader \
   --samples 4096 \
   --batch-size 32 \
   --num-workers 4 \
+  --video-burst-size 32 \
+  --burst-span-seconds 2.0 \
   --pin-memory \
   --persistent-workers
 ```
 
-This benchmark samples random frames from held-out videos on demand and reports effective samples/sec so you can decide whether offline frame extraction is necessary.
+`--video-burst-size` and `--burst-span-seconds` let you benchmark locality-aware sampling, where each short burst of samples comes from the same video and nearby timestamps. Matching `--video-burst-size` to `--batch-size` is a good first test.
+
+This benchmark samples frames from held-out videos on demand and reports effective samples/sec so you can decide whether offline frame extraction is necessary.
