@@ -10,6 +10,13 @@ Dataset observations from a quick inspection on March 11, 2026:
 
 The training pipeline preserves aspect ratio, pads images to `256x192`, and learns a latent space that can be interpolated between dataset frames.
 
+The preferred cloud-native path is now:
+
+1. keep raw videos in object storage or a local `raw/` directory
+2. build a per-video JSONL manifest
+3. rewrite the manifest into `frames-256/` tar shards
+4. train from shard manifests with a bounded local cache
+
 ## Setup
 
 ```bash
@@ -19,10 +26,31 @@ pip install --upgrade pip
 pip install -e .
 ```
 
-## Train
+## Train From Frame Shards
+
+Rewrite the raw manifest into training-optimized frame shards:
+
+```bash
+python -m sandbox_autoencoders.build_frame_shards \
+  --manifest outputs/video-manifests/local-videos.jsonl \
+  --output-dir outputs/frame-shards/frames-256 \
+  --sample-fps 1.0 \
+  --overwrite
+```
+
+This writes:
+
+- `outputs/frame-shards/frames-256/shards.jsonl`
+- `outputs/frame-shards/frames-256/train/*.tar`
+- `outputs/frame-shards/frames-256/val/*.tar`
+- `outputs/frame-shards/frames-256/test/*.tar`
+
+Train against the shard manifest:
 
 ```bash
 python -m sandbox_autoencoders.train \
+  --shard-manifest outputs/frame-shards/frames-256/shards.jsonl \
+  --cache-dir .cache/frame-shards \
   --epochs 40 \
   --batch-size 32 \
   --latent-dim 128 \
@@ -35,6 +63,20 @@ Artifacts:
 - checkpoints in `outputs/run-01/checkpoints/`
 - sample reconstructions after each epoch in `outputs/run-01/reconstructions/`
 - training history in `outputs/run-01/history.json`
+
+If your shards live in object storage, point the manifest at a different root:
+
+```bash
+python -m sandbox_autoencoders.train \
+  --shard-manifest outputs/frame-shards/frames-256/shards.jsonl \
+  --shard-root s3://my-bucket/frames-256 \
+  --cache-dir /mnt/nvme/frame-shards \
+  --epochs 40 \
+  --batch-size 32 \
+  --output-dir outputs/run-cloud
+```
+
+`--shard-root` also works with `hf://` roots when the shards have been synced to a Hugging Face storage bucket.
 
 ## Interpolate
 
@@ -81,23 +123,25 @@ The manifest stores one row per video with duration, fps, dimensions, byte size,
 
 `ffprobe` must be available on your `PATH`.
 
-## Benchmark Local Video Loading
+The raw-video manifest remains useful for inspection, preprocessing, and debugging. The trainer can still read it directly with `--manifest`, but that path is slower because it samples from compressed videos on demand.
 
-Measure dataloader throughput against the manifest:
+## Benchmark Loader Throughput
+
+Measure dataloader throughput against the shard manifest:
 
 ```bash
 python -m sandbox_autoencoders.benchmark_video_loader \
-  --manifest outputs/video-manifests/local-videos.jsonl \
+  --shard-manifest outputs/frame-shards/frames-256/shards.jsonl \
   --split train \
   --samples 4096 \
   --batch-size 32 \
   --num-workers 4 \
-  --video-burst-size 32 \
-  --burst-span-seconds 2.0 \
+  --cache-dir .cache/frame-shards \
+  --sample-shuffle-buffer 2048 \
   --pin-memory \
   --persistent-workers
 ```
 
-`--video-burst-size` and `--burst-span-seconds` let you benchmark locality-aware sampling, where each short burst of samples comes from the same video and nearby timestamps. Matching `--video-burst-size` to `--batch-size` is a good first test.
+Benchmark the legacy raw-video path by swapping `--shard-manifest` for `--manifest`. That keeps the old OpenCV random-seek loader available when you need to compare preprocessing quality or debug source videos.
 
-This benchmark samples frames from held-out videos on demand and reports effective samples/sec so you can decide whether offline frame extraction is necessary.
+The shard benchmark reports effective samples/sec so you can measure cold-cache and warm-cache behavior on a cloud node.

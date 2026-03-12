@@ -4,6 +4,7 @@ import bisect
 import hashlib
 import json
 import math
+import multiprocessing as mp
 import os
 import random
 import subprocess
@@ -208,7 +209,8 @@ class SampledVideoFrameDataset(Dataset):
         self.max_decode_attempts = max_decode_attempts
         self.max_sequential_gap_frames = max_sequential_gap_frames
         self.sampling_weight = sampling_weight
-        self.epoch = 0
+        self._epoch = mp.get_context("spawn").Value("q", 0)
+        self._observed_epoch = 0
 
         self._capture_cache: OrderedDict[str, CaptureState] = OrderedDict()
         self._weights = self._build_weights(records, sampling_weight)
@@ -257,13 +259,15 @@ class SampledVideoFrameDataset(Dataset):
     def set_epoch(self, epoch: int) -> None:
         if epoch < 0:
             raise ValueError("epoch must be non-negative")
-        self.epoch = epoch
+        self._epoch.value = epoch
+        self._observed_epoch = epoch
         self.close()
 
     def _sample_candidate(self, index: int, attempt: int) -> tuple[VideoRecord, float]:
+        epoch = self._current_epoch()
         burst_index = index // self.video_burst_size
         offset_in_burst = index % self.video_burst_size
-        rng = random.Random(self.seed + self.epoch * 10_000_019 + burst_index + attempt * 1_000_003)
+        rng = random.Random(self.seed + epoch * 10_000_019 + burst_index + attempt * 1_000_003)
         record = self._sample_record(rng)
         timestamp = self._sample_timestamp(
             record=record,
@@ -271,6 +275,13 @@ class SampledVideoFrameDataset(Dataset):
             offset_in_burst=offset_in_burst,
         )
         return record, timestamp
+
+    def _current_epoch(self) -> int:
+        epoch = int(self._epoch.value)
+        if epoch != self._observed_epoch:
+            self.close()
+            self._observed_epoch = epoch
+        return epoch
 
     def _sample_record(self, rng: random.Random) -> VideoRecord:
         needle = rng.random() * self._total_weight
@@ -302,7 +313,7 @@ class SampledVideoFrameDataset(Dataset):
 
     def _decode_frame(self, record: VideoRecord, timestamp: float):
         state = self._get_capture_state(record.path)
-        frame_index = self._resolve_frame_index(record, timestamp)
+        frame_index = resolve_frame_index(record, timestamp)
         ok, frame = self._read_frame(state=state, frame_index=frame_index, timestamp=timestamp)
         if not ok or frame is None:
             state.capture.release()
@@ -315,13 +326,6 @@ class SampledVideoFrameDataset(Dataset):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(frame)
         return resize_with_padding(image, self.image_spec)
-
-    def _resolve_frame_index(self, record: VideoRecord, timestamp: float) -> int:
-        if record.frame_count > 0 and record.duration_seconds > 0:
-            return min(record.frame_count - 1, max(0, round(timestamp / record.duration_seconds * (record.frame_count - 1))))
-        if record.fps > 0:
-            return max(0, round(timestamp * record.fps))
-        return 0
 
     def _read_frame(
         self,
@@ -385,6 +389,14 @@ def assign_split(video_id: str, train_fraction: float, val_fraction: float, seed
     if bucket < train_fraction + val_fraction:
         return "val"
     return "test"
+
+
+def resolve_frame_index(record: VideoRecord, timestamp: float) -> int:
+    if record.frame_count > 0 and record.duration_seconds > 0:
+        return min(record.frame_count - 1, max(0, round(timestamp / record.duration_seconds * (record.frame_count - 1))))
+    if record.fps > 0:
+        return max(0, round(timestamp * record.fps))
+    return 0
 
 
 def _stable_bucket(value: str, seed: int) -> float:

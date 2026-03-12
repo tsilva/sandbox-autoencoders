@@ -10,4 +10,6 @@
     "videos": 22
   }
 }
- 12%|██████████████████████████▊                                                                                                                                                                                           | 16/128 [00:12<00:40,  2.74it/s]
+  0%|▏                                                                                                                                                                                                                     | 3/3125 [00:03<44:06,  1.18it/s][34m[1mwandb[0m: [33mWARNING[0m Tried to log to step 1 that is less than the current step 3125. Steps must be monotonically increasing, so this data will be ignored. See https://wandb.me/define-metric to log data out of order.
+epoch=1 beta=0.000100 train_loss=25328.5406 val_loss=24839.0615 val_recon_l1=0.186847 val_recon_mse=0.094751 val_recon=24835.6843 val_kl=33772.3312 val_mu_abs=18.2692 val_logvar_abs=7.8063 early_stop_wait=0/8
+ 85%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▋                                | 2647/3125 [24:47<04:06,  1.94it/s]

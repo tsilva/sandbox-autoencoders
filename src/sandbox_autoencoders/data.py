@@ -23,20 +23,22 @@ class ImageSpec:
     height: int = 192
 
 
-def resize_with_padding(image: Image.Image, spec: ImageSpec) -> torch.Tensor:
+def resize_image_with_padding(image: Image.Image, spec: ImageSpec) -> Image.Image:
     image = image.convert("RGB")
     width, height = image.size
     scale = min(spec.width / width, spec.height / height)
     resized_width = max(1, round(width * scale))
     resized_height = max(1, round(height * scale))
     image = TF.resize(image, [resized_height, resized_width], antialias=True)
-    tensor = TF.to_tensor(image)
-
     pad_left = (spec.width - resized_width) // 2
-    pad_right = spec.width - resized_width - pad_left
     pad_top = (spec.height - resized_height) // 2
-    pad_bottom = spec.height - resized_height - pad_top
-    return TF.pad(tensor, [pad_left, pad_top, pad_right, pad_bottom], fill=0.0)
+    canvas = Image.new("RGB", (spec.width, spec.height), color=(0, 0, 0))
+    canvas.paste(image, (pad_left, pad_top))
+    return canvas
+
+
+def resize_with_padding(image: Image.Image, spec: ImageSpec) -> torch.Tensor:
+    return TF.to_tensor(resize_image_with_padding(image, spec))
 
 
 def _default_cache_dir(dataset_name: str) -> Path:
