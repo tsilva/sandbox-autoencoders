@@ -63,38 +63,37 @@ class ConvVAE(nn.Module):
             nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1),
             _group_norm(32),
             nn.SiLU(),
-            ResidualBlock(32),
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
             _group_norm(64),
             nn.SiLU(),
-            ResidualBlock(64),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(64, 96, kernel_size=4, stride=2, padding=1),
+            _group_norm(96),
+            nn.SiLU(),
+            nn.Conv2d(96, 128, kernel_size=4, stride=2, padding=1),
             _group_norm(128),
             nn.SiLU(),
-            ResidualBlock(128),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
-            _group_norm(256),
+            nn.Conv2d(128, 192, kernel_size=4, stride=2, padding=1),
+            _group_norm(192),
             nn.SiLU(),
-            ResidualBlock(256),
-            nn.Conv2d(256, 384, kernel_size=4, stride=2, padding=1),
-            _group_norm(384),
-            nn.SiLU(),
-            ResidualBlock(384),
+            ResidualBlock(192),
         )
 
-        self.feature_shape = (384, image_spec.height // 32, image_spec.width // 32)
+        self.feature_shape = (192, image_spec.height // 32, image_spec.width // 32)
         flattened_features = self.feature_shape[0] * self.feature_shape[1] * self.feature_shape[2]
         self.fc_mu = nn.Linear(flattened_features, latent_dim)
         self.fc_logvar = nn.Linear(flattened_features, latent_dim)
         self.decoder_input = nn.Linear(latent_dim, flattened_features)
 
         self.decoder = nn.Sequential(
-            ResidualBlock(384),
-            UpsampleBlock(384, 256),
-            UpsampleBlock(256, 128),
-            UpsampleBlock(128, 64),
+            ResidualBlock(192),
+            UpsampleBlock(192, 128),
+            UpsampleBlock(128, 96),
+            UpsampleBlock(96, 64),
             UpsampleBlock(64, 32),
-            UpsampleBlock(32, 32),
+            nn.Upsample(scale_factor=2, mode="nearest"),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            _group_norm(32),
+            nn.SiLU(),
             nn.Conv2d(32, 3, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )

@@ -52,6 +52,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--height", type=int, default=192)
     parser.add_argument("--device")
     parser.add_argument("--resume-from")
+    parser.add_argument("--hf-repo-id")
+    parser.add_argument("--hf-path-prefix", default="")
+    parser.add_argument("--hf-upload-every", type=int, default=1)
     return parser.parse_args()
 
 
@@ -142,6 +145,30 @@ def _compute_early_stop_state(
     return best_val_loss, epochs_without_improvement
 
 
+def _create_hf_api(args: argparse.Namespace):
+    if not args.hf_repo_id:
+        return None
+    from huggingface_hub import HfApi
+
+    return HfApi()
+
+
+def _hf_repo_path(prefix: str, relative_path: str) -> str:
+    cleaned_prefix = prefix.strip("/")
+    cleaned_relative = relative_path.strip("/")
+    if not cleaned_prefix:
+        return cleaned_relative
+    return f"{cleaned_prefix}/{cleaned_relative}"
+
+
+def _upload_hf_file(api, repo_id: str, prefix: str, local_path: Path, relative_path: str) -> None:
+    api.upload_file(
+        path_or_fileobj=str(local_path),
+        path_in_repo=_hf_repo_path(prefix, relative_path),
+        repo_id=repo_id,
+    )
+
+
 def main() -> None:
     args = parse_args()
     set_seed(args.seed)
@@ -151,6 +178,7 @@ def main() -> None:
     output_dir = ensure_dir(args.output_dir)
     checkpoints_dir = ensure_dir(output_dir / "checkpoints")
     recon_dir = ensure_dir(output_dir / "reconstructions")
+    hf_api = _create_hf_api(args)
 
     loader_kwargs = {
         "batch_size": args.batch_size,
@@ -276,15 +304,27 @@ def main() -> None:
             "metrics": record,
         }
         epoch_path = checkpoints_dir / f"epoch-{epoch:03d}.pt"
+        last_path = checkpoints_dir / "last.pt"
         torch.save(checkpoint, epoch_path)
+        torch.save(checkpoint, last_path)
+        best_updated = False
         if val_metrics["loss"] < best_val_loss - args.early_stopping_min_delta:
             best_val_loss = val_metrics["loss"]
             epochs_without_improvement = 0
             torch.save(checkpoint, checkpoints_dir / "best.pt")
+            best_updated = True
         else:
             epochs_without_improvement += 1
 
-        save_reconstruction_preview(model, val_loader, device, recon_dir / f"epoch-{epoch:03d}.png")
+        preview_path = recon_dir / f"epoch-{epoch:03d}.png"
+        save_reconstruction_preview(model, val_loader, device, preview_path)
+        if hf_api is not None and epoch % max(1, args.hf_upload_every) == 0:
+            _upload_hf_file(hf_api, args.hf_repo_id, args.hf_path_prefix, epoch_path, f"checkpoints/{epoch_path.name}")
+            _upload_hf_file(hf_api, args.hf_repo_id, args.hf_path_prefix, last_path, "checkpoints/last.pt")
+            _upload_hf_file(hf_api, args.hf_repo_id, args.hf_path_prefix, output_dir / "history.json", "history.json")
+            _upload_hf_file(hf_api, args.hf_repo_id, args.hf_path_prefix, preview_path, f"reconstructions/{preview_path.name}")
+            if best_updated:
+                _upload_hf_file(hf_api, args.hf_repo_id, args.hf_path_prefix, checkpoints_dir / "best.pt", "checkpoints/best.pt")
         print(
             f"epoch={epoch} "
             f"beta={current_beta:.6f} "
