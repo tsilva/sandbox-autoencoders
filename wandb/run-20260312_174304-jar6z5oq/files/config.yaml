@@ -1,0 +1,165 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            qxlgl1olpzcqftmebofumr9mm7czqj30:
+                apple:
+                    ecpuCores: 2
+                    gpuCores: 14
+                    memoryGb: 16
+                    name: Apple M1 Pro
+                    pcpuCores: 6
+                    ramTotalBytes: "17179869184"
+                    swapTotalBytes: "17179869184"
+                args:
+                    - --manifest
+                    - outputs/video-manifests/local-videos.jsonl
+                    - --output-dir
+                    - outputs/zx-local-run
+                    - --epochs
+                    - "40"
+                    - --batch-size
+                    - "32"
+                    - --num-workers
+                    - "4"
+                    - --persistent-workers
+                    - --learning-rate
+                    - "3e-4"
+                    - --latent-dim
+                    - "128"
+                    - --beta
+                    - "0.001"
+                    - --beta-warmup-epochs
+                    - "10"
+                    - --train-samples-per-epoch
+                    - "100000"
+                    - --val-samples
+                    - "4096"
+                    - --sampling-weight
+                    - sqrt_duration
+                    - --video-burst-size
+                    - "16"
+                    - --burst-span-seconds
+                    - "1.5"
+                    - --val-video-burst-size
+                    - "1"
+                    - --val-burst-span-seconds
+                    - "0.0"
+                    - --max-open-captures
+                    - "8"
+                    - --max-decode-attempts
+                    - "4"
+                    - --max-sequential-gap-frames
+                    - "120"
+                    - --wandb-project
+                    - zx-spectrum-vae
+                cpu_count: 8
+                cpu_count_logical: 8
+                disk:
+                    /:
+                        total: "494384795648"
+                        used: "423265271808"
+                email: eng.tiago.silva@gmail.com
+                executable: /Users/tsilva/repos/tsilva/sandbox-autoencoders/.venv/bin/python3
+                git:
+                    commit: 7f58da8ffd251b294a7e1d5785c6626624a19934
+                    remote: git@github.com:tsilva/sandbox-autoencoders.git
+                host: Tiagos-MacBook-Pro.local
+                memory:
+                    total: "17179869184"
+                os: macOS-26.3-arm64-arm-64bit
+                program: -m sandbox_autoencoders.train
+                python: CPython 3.11.0
+                root: /Users/tsilva/repos/tsilva/sandbox-autoencoders
+                startedAt: "2026-03-12T17:43:04.975012Z"
+                writerId: qxlgl1olpzcqftmebofumr9mm7czqj30
+        m: []
+        python_version: 3.11.0
+        t:
+            "1":
+                - 1
+                - 41
+                - 105
+            "2":
+                - 1
+                - 41
+                - 105
+            "3":
+                - 16
+                - 61
+            "4": 3.11.0
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": darwin-arm64
+batch_size:
+    value: 32
+beta:
+    value: 0.001
+beta_warmup_epochs:
+    value: 10
+burst_span_seconds:
+    value: 1.5
+device:
+    value: null
+early_stopping_min_delta:
+    value: 2
+early_stopping_patience:
+    value: 8
+epochs:
+    value: 40
+grad_clip_norm:
+    value: 1
+height:
+    value: 192
+latent_dim:
+    value: 128
+learning_rate:
+    value: 0.0003
+manifest:
+    value: outputs/video-manifests/local-videos.jsonl
+max_decode_attempts:
+    value: 4
+max_open_captures:
+    value: 8
+max_sequential_gap_frames:
+    value: 120
+max_train_batches:
+    value: null
+max_val_batches:
+    value: null
+num_workers:
+    value: 4
+output_dir:
+    value: outputs/zx-local-run
+persistent_workers:
+    value: true
+pin_memory:
+    value: false
+resume_from:
+    value: null
+sampling_weight:
+    value: sqrt_duration
+seed:
+    value: 42
+train_samples_per_epoch:
+    value: 100000
+val_burst_span_seconds:
+    value: 0
+val_samples:
+    value: 4096
+val_video_burst_size:
+    value: 1
+video_burst_size:
+    value: 16
+wandb_entity:
+    value: null
+wandb_log_every:
+    value: 25
+wandb_project:
+    value: zx-spectrum-vae
+wandb_run_name:
+    value: null
+wandb_upload_every:
+    value: 1
+width:
+    value: 256
