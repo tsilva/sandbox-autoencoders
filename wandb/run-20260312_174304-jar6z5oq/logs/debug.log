@@ -17,3 +17,5 @@ config: {'manifest': 'outputs/video-manifests/local-videos.jsonl', 'output_dir':
 2026-03-12 17:43:06,266 INFO    MainThread:9221 [wandb_run.py:_redirect():2442] Wrapping output streams.
 2026-03-12 17:43:06,267 INFO    MainThread:9221 [wandb_run.py:_redirect():2465] Redirects installed.
 2026-03-12 17:43:06,269 INFO    MainThread:9221 [wandb_init.py:init():1082] run started, returning control to user process
+2026-03-12 18:54:24,517 INFO    wandb-AsyncioManager-main:9221 [service_client.py:_forward_responses():134] Reached EOF.
+2026-03-12 18:54:24,521 INFO    wandb-AsyncioManager-main:9221 [mailbox.py:close():155] Closing mailbox, abandoning 1 handles.
